@@ -4,11 +4,13 @@ Converts a TXT file with multiple entries in the IEEE format into bibtex.
 
 ## Usage
 
-    python3 ieee2bibtex.py in.txt -o out.txt -p "prefix_"
+    python3 ieee2bibtex.py in.txt -o out.txt -p "prefix_" -a
 
 **-o** declares the output file name
 
 **-p** adds a prefix to the entry names (artX becomes prefix_artX, for every entry)
+
+**-a** forces all entries to be interpreted as article type (useful for abntex2 documents)
 
 ## Input format
 
@@ -20,13 +22,13 @@ Converts a TXT file with multiple entries in the IEEE format into bibtex.
 
 ## Output format
 
-    @article|proceedings{prefix_artX,
+    @article|inproceedings{prefix_artX,
 
       author = {First1 Last1 and First2 Last2 and First3 Last3},
   
       title = {Title of the article},
   
-      journal = {Source title},
+      journal|booktitle = {Source title},
   
       year = {Year}
   
