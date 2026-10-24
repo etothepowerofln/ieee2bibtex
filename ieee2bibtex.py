@@ -28,7 +28,7 @@ def parse_bibitem_blocks(raw_text: str) -> List[Tuple[str, str]]:
     
     return entries
 
-def parse_ieee_bibitem(cite_key: str, block_text: str) -> str:
+def parse_ieee_bibitem(cite_key: str, block_text: str, force_article: bool = False) -> str:
     """Parses IEEE bibitem matching exact quote boundaries and journal termination rules."""
     cleaned = clean_latex(block_text)
     
@@ -52,7 +52,7 @@ def parse_ieee_bibitem(cite_key: str, block_text: str) -> str:
     year_match = re.search(r'\b(19\d{2}|20\d{2})\b', rest)
     year = year_match.group(1) if year_match else "n.d."
 
-    # Journal name stops at , vol., , no., , pp., or , yyyy
+    # Journal/Source name stops at , vol., , no., , pp., or , yyyy
     stop_pattern = r',\s*(?:vol\.|v\.|no\.|n\.|pp\.|p\.|volume|number|page|pages|' + re.escape(year) + r')'
     source_match = re.split(stop_pattern, rest, flags=re.IGNORECASE)
     source = source_match[0].strip().rstrip('.,;') if source_match else "Unknown Source"
@@ -60,24 +60,30 @@ def parse_ieee_bibitem(cite_key: str, block_text: str) -> str:
     if not source:
         source = "Unknown Source"
 
-    # Determine entry type based on source keywords
-    lower_source = source.lower()
-    if 'proceedings' in lower_source or 'conference' in lower_source:
-        entry_type = 'proceedings'
-    else:
+    # Determine entry type and field name
+    if force_article:
         entry_type = 'article'
+        source_type = 'journal'
+    else:
+        lower_source = source.lower()
+        if 'proceedings' in lower_source or 'conference' in lower_source:
+            entry_type = 'inproceedings'
+            source_type = 'booktitle'
+        else:
+            entry_type = 'article'
+            source_type = 'journal'
 
     bibtex_entry = (
         f"@{entry_type}{{{cite_key},\n"
         f"  author = {{{author_formatted}}},\n"
         f"  title = {{{title}}},\n"
-        f"  journal = {{{source}}},\n"
+        f"  {source_type} = {{{source}}},\n"
         f"  year = {{{year}}}\n"
         f"}}"
     )
     return bibtex_entry
 
-def convert_bibitem_to_bibtex(bibitem_text: str, prefix: str = "") -> str:
+def convert_bibitem_to_bibtex(bibitem_text: str, prefix: str = "", force_article: bool = False) -> str:
     parsed_entries = parse_bibitem_blocks(bibitem_text)
     
     if not parsed_entries:
@@ -87,7 +93,7 @@ def convert_bibitem_to_bibtex(bibitem_text: str, prefix: str = "") -> str:
     
     for cite_key, block_text in parsed_entries:
         final_key = f"{prefix}{cite_key}" if prefix else cite_key
-        converted = parse_ieee_bibitem(final_key, block_text)
+        converted = parse_ieee_bibitem(final_key, block_text, force_article=force_article)
         bibtex_results.append(converted)
     
     return "\n\n".join(bibtex_results)
@@ -97,6 +103,7 @@ def main():
     parser.add_argument("input_file", help="Path to input .txt file containing \\bibitem entries")
     parser.add_argument("-o", "--output", help="Path to output .txt file for BibTeX entries", default=None)
     parser.add_argument("-p", "--prefix", help="Optional prefix string to prepend to all generated citation keys", default="")
+    parser.add_argument("-a", "--force-article", action="store_true", help="Force every generated entry to be an @article type with a journal field")
     
     args = parser.parse_args()
     
@@ -114,7 +121,7 @@ def main():
     with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read()
         
-    bibtex_output = convert_bibitem_to_bibtex(content, prefix=args.prefix)
+    bibtex_output = convert_bibitem_to_bibtex(content, prefix=args.prefix, force_article=args.force_article)
     
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(bibtex_output + "\n")
